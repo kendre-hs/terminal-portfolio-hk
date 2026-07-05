@@ -1,0 +1,788 @@
+<!-- 
+    Gemi's Final Build: Interactive Terminal Portfolio for Mama
+    Version: 3.1 (Stable)
+    To use this file, copy all the code and save it in a single file named "index.html" or "portfolio.html".
+    Then, open that file in your web browser.
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mr. Kendre Hanumant Shesherav - AI/ML Engineer [GemiOS v3.1]</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Essential Libraries for Advanced Features -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        :root {
+            --background: #10121a;
+            --foreground: #c0caf5;
+            --comment: #5c6370;
+            --cyan: #7dcfff;
+            --green: #9ece6a;
+            --yellow: #e0af68;
+            --red: #f7768e;
+            --magenta: #bb9af7;
+            --blue: #7aa2f7;
+            --scanline-opacity: 0.05;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            cursor: none;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--foreground);
+            font-family: 'Fira Code', monospace;
+            font-size: 1rem;
+        }
+
+        /* --- Custom Cursor --- */
+        #cursor-follow {
+            position: fixed;
+            border: 1px solid var(--cyan);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: width 0.2s, height 0.2s, border-radius 0.2s, background-color 0.2s;
+            z-index: 9999;
+        }
+
+        #cursor-follow.active {
+            background-color: rgba(125, 207, 255, 0.3);
+            transform: translate(-50%, -50%) scale(1.5);
+        }
+
+        /* --- CRT Scanline Effect --- */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0% {
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.4;
+            }
+        }
+
+        /* --- Terminal Styles --- */
+        #terminal {
+            padding: 1.5rem;
+            height: calc(100vh - 3rem);
+            overflow-y: auto;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            position: relative;
+            z-index: 1;
+        }
+
+        #terminal::-webkit-scrollbar {
+            display: none;
+        }
+
+        #terminal {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .line {
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .prompt-line {
+            display: flex;
+            align-items: center;
+        }
+
+        .prompt-symbol {
+            color: var(--magenta);
+            margin-right: 0.5rem;
+        }
+
+        #user-input {
+            background: none;
+            border: none;
+            color: var(--foreground);
+            font-family: 'Fira Code', monospace;
+            font-size: 1rem;
+            flex-grow: 1;
+            padding: 0;
+        }
+
+        #user-input:focus {
+            outline: none;
+        }
+
+        .cursor-blink {
+            display: inline-block;
+            width: 8px;
+            height: 1.2rem;
+            background-color: var(--foreground);
+            animation: blink 1s step-end infinite;
+            margin-left: 4px;
+        }
+
+        @keyframes blink {
+
+            from,
+            to {
+                background-color: transparent;
+            }
+
+            50% {
+                background-color: var(--foreground);
+            }
+        }
+
+        /* --- Command Specific Styles --- */
+        .help-command {
+            color: var(--cyan);
+        }
+
+        .glitch-wrapper {
+            font-size: 3rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--blue);
+            margin-bottom: 2rem;
+            text-shadow: 0 0 5px var(--blue), 0 0 10px var(--cyan);
+            height: 3rem;
+        }
+
+        .about-content-wrapper {
+            display: flex;
+            align-items: flex-start;
+            width: 100%;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards 0.2s;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .profile-pic-container {
+            flex-shrink: 0;
+            margin-right: 2rem;
+            transform: translateX(-100%);
+            opacity: 0;
+            animation: slideInLeft 0.8s forwards cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.4s;
+        }
+
+        .profile-pic-container img {
+            width: 150px;
+            height: 150px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid var(--cyan);
+            background-color: var(--blue);
+        }
+
+        .bio-text {
+            flex-grow: 1;
+            transform: translateX(100%);
+            opacity: 0;
+            animation: slideInRight 0.8s forwards cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.4s;
+        }
+
+        .bio-text .keyword {
+            color: var(--cyan);
+            font-weight: 700;
+            text-shadow: 0 0 8px var(--cyan);
+        }
+
+        @keyframes slideInLeft {
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInRight {
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        #skills-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            margin-top: 1rem;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+
+        #skills-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #skill-tooltip {
+            position: absolute;
+            color: var(--background);
+            background: var(--yellow);
+            padding: 5px 10px;
+            border-radius: 4px;
+            pointer-events: none;
+            display: none;
+            font-size: 0.9rem;
+            z-index: 5;
+        }
+
+        #projects-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(16, 18, 26, 0.9);
+            z-index: 10;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .project-card {
+            background: #1e2130;
+            border: 1px solid var(--blue);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            opacity: 0;
+            animation: popIn 0.5s forwards;
+            cursor: pointer;
+        }
+
+        .project-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(122, 162, 247, 0.2);
+        }
+
+        .project-card h3 {
+            margin-top: 0;
+            color: var(--yellow);
+        }
+
+        .project-card p {
+            color: var(--foreground);
+            font-size: 0.9rem;
+        }
+
+        .project-card .tags {
+            margin-top: 1rem;
+        }
+
+        .project-card .tag {
+            background: var(--magenta);
+            color: var(--background);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin: 0 0.2rem;
+        }
+
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .contact-form .input-group {
+            display: flex;
+            margin: 0.5rem 0;
+        }
+
+        .contact-form .input-group label {
+            color: var(--green);
+            margin-right: 0.5rem;
+        }
+
+        .contact-form .input-group input {
+            background: none;
+            border: none;
+            border-bottom: 1px solid var(--comment);
+            color: var(--foreground);
+            flex-grow: 1;
+        }
+
+        .contact-form .input-group input:focus {
+            outline: none;
+            border-bottom: 1px solid var(--cyan);
+        }
+
+        .contact-link {
+            color: var(--cyan);
+            text-decoration: none;
+        }
+
+        .contact-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="cursor-follow"></div>
+    <div id="terminal"></div>
+    <div id="projects-overlay"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const terminal = document.getElementById('terminal');
+            const projectsOverlay = document.getElementById('projects-overlay');
+            const cursorFollow = document.getElementById('cursor-follow');
+            let terminalContent, inputLine, userInput, cursorBlink;
+            let isCommandRunning = false;
+            let synth, commandHistory = [];
+            let lastSoundTime = 0;
+
+            function init() {
+                setupTerminal();
+                setupSound();
+                setupCustomCursor();
+                setupProjectsOverlayClose();
+                runBootSequence();
+            }
+
+            function setupProjectsOverlayClose() {
+                projectsOverlay.addEventListener('click', (e) => {
+                    if (e.target === projectsOverlay) {
+                        projectsOverlay.style.display = 'none';
+                        projectsOverlay.innerHTML = '';
+                    }
+                });
+            }
+
+            function setupTerminal() {
+                terminal.innerHTML = `
+                    <div id="terminal-content"></div>
+                    <div id="input-line" class="prompt-line" style="display: none;">
+                        <span class="prompt-symbol">&gt;</span>
+                        <input type="text" id="user-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        <span class="cursor-blink"></span>
+                    </div>`;
+                terminalContent = document.getElementById('terminal-content');
+                inputLine = document.getElementById('input-line');
+                userInput = document.getElementById('user-input');
+                cursorBlink = document.querySelector('.cursor-blink');
+
+                userInput.addEventListener('keydown', handleInput);
+                document.body.addEventListener('click', focusInput);
+            }
+
+            function focusInput() { userInput.focus(); }
+
+            function setupSound() {
+                synth = new Tone.Synth({
+                    oscillator: { type: 'square' },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.1 }
+                }).toDestination();
+                lastSoundTime = 0;
+            }
+
+            function playSound(note, duration) {
+                if (Tone.context.state !== 'running') { Tone.start(); }
+                const now = Tone.now();
+                if (now - lastSoundTime > 0.04) {
+                    synth.triggerAttackRelease(note, duration, now);
+                    lastSoundTime = now;
+                }
+            }
+
+            function setupCustomCursor() {
+                window.addEventListener('mousemove', e => {
+                    cursorFollow.style.left = e.clientX + 'px';
+                    cursorFollow.style.top = e.clientY + 'px';
+                });
+                document.addEventListener('mousedown', () => cursorFollow.classList.add('active'));
+                document.addEventListener('mouseup', () => cursorFollow.classList.remove('active'));
+            }
+
+            function addLine(html, color = 'var(--foreground)', className = '') {
+                const line = document.createElement('div');
+                line.className = `line ${className}`;
+                line.style.color = color;
+                line.innerHTML = html;
+                terminalContent.appendChild(line);
+                scrollToBottom();
+                return line;
+            }
+
+            function typeText(element, text, delay) {
+                return new Promise(resolve => {
+                    let i = 0;
+                    function type() {
+                        if (i < text.length) {
+                            element.innerHTML += text.charAt(i);
+                            if (text.charAt(i) !== ' ') playSound('C2', '32n');
+                            i++;
+                            setTimeout(type, delay);
+                        } else { resolve(); }
+                    }
+                    type();
+                });
+            }
+
+            async function runBootSequence() {
+                const bootSequence = [
+                    { text: 'INITIALIZING GemiOS v3.1...', delay: 50, color: 'var(--green)' },
+                    { text: 'LOADING USER_PROFILE: Mr. Kendre Hanumant Shesherav...', delay: 100, color: 'var(--green)' },
+                    { text: 'STATUS: AI/ML ENGINEER', delay: 50, color: 'var(--cyan)' },
+                    { text: 'SOUND MODULE...ONLINE', delay: 50, color: 'var(--green)' },
+                    { text: '3D RENDERER...ONLINE', delay: 50, color: 'var(--green)' },
+                    { text: 'AUTHENTICATION COMPLETE. WELCOME.', delay: 50, color: 'var(--magenta)' },
+                    { text: '', delay: 100 },
+                    { text: "> Type 'help' for a list of commands.", delay: 50, color: 'var(--comment)' },
+                ];
+                for (const item of bootSequence) {
+                    await new Promise(res => setTimeout(res, item.delay));
+                    if (item.text) {
+                        const line = addLine('', item.color);
+                        await typeText(line, item.text, 10);
+                    }
+                }
+                inputLine.style.display = 'flex';
+                focusInput();
+            }
+
+            function scrollToBottom() { terminal.scrollTop = terminal.scrollHeight; }
+
+            async function handleInput(e) {
+                if (e.key === 'Enter' && !isCommandRunning) {
+                    const command = userInput.value;
+                    if (command.trim() === '') return;
+
+                    commandHistory.push(command);
+                    isCommandRunning = true;
+                    userInput.disabled = true;
+                    cursorBlink.style.display = 'none';
+
+                    addLine(`<span class="prompt-symbol" style="color:var(--magenta)">&gt;</span> ${command}`);
+                    playSound('C4', '8n');
+                    userInput.value = '';
+
+                    await executeCommand(command);
+
+                    isCommandRunning = false;
+                    userInput.disabled = false;
+                    cursorBlink.style.display = 'inline-block';
+                    focusInput();
+                    scrollToBottom();
+                }
+            }
+
+            async function executeCommand(command) {
+                const [cmd, ...args] = command.toLowerCase().trim().split(' ');
+                switch (cmd) {
+                    case 'help': runHelp(); break;
+                    case 'clear': terminalContent.innerHTML = ''; break;
+                    case 'about': await runAbout(); break;
+                    case 'skills': await runSkills(); break;
+                    case 'projects': await runProjects(); break;
+                    case 'contact': await runContact(); break;
+                    case 'reboot': location.reload(); break;
+                    case 'exit':
+                        if (projectsOverlay.style.display === 'flex') {
+                            projectsOverlay.style.display = 'none';
+                            projectsOverlay.innerHTML = '';
+                        } else {
+                            addLine(`'exit' command is only used to close the projects view.`, 'var(--comment)');
+                        }
+                        break;
+                    default:
+                        addLine(`Command not found: ${command}. Type 'help' for a list of available commands.`, 'var(--red)');
+                        playSound('C3', '4n');
+                        break;
+                }
+            }
+
+            function runHelp() {
+                addLine(`Available commands:`, 'var(--yellow)');
+                const commands = {
+                    'about': 'Who is Hanumant Kendre?',
+                    'skills': 'Show interactive skill visualization.',
+                    'projects': 'View my featured work.',
+                    'contact': 'Display contact information.',
+                    'clear': 'Clear the terminal screen.',
+                    'reboot': 'Restart the GemiOS session.'
+                };
+                for (const [cmd, desc] of Object.entries(commands)) {
+                    addLine(`&nbsp;&nbsp;<span class="help-command">${cmd.padEnd(10)}</span> - ${desc}`);
+                }
+            }
+
+            async function runAbout() {
+                const glitchName = addLine('', 'var(--blue)', 'glitch-wrapper');
+                await runGlitchAnimation(glitchName, 'AI/ML ENGINEER');
+
+                const contentWrapper = addLine('', 'var(--foreground)', 'about-content-wrapper');
+                contentWrapper.innerHTML = `
+                    <div class="profile-pic-container">
+                        <img src="https://media.licdn.com/dms/image/v2/D4D03AQH91ihGIJ-qWw/profile-displayphoto-scale_400_400/B4DZ7rYNfSHQAg-/0/1782065454336?e=1784764800&v=beta&t=YQjBp7IWiLMAOb3YPC_v4uh51tePx3uu_Uafw-xAs7Q" alt="Mr. Kendre Hanumant Shesherav">
+                    </div>
+                    <div class="bio-text"></div>`;
+
+                const bioContainer = contentWrapper.querySelector('.bio-text');
+                const bio = "I am a passionate AI and Machine Learning Engineer dedicated to building intelligent systems that solve real-world problems. My expertise lies in developing and deploying robust models, with a focus on deep learning and data-driven solutions. I thrive on turning complex data into actionable insights and creating technology that learns and adapts.";
+
+                await new Promise(res => setTimeout(res, 1200));
+                await typeBioText(bioContainer, bio, ["AI", "Machine Learning", "deep learning", "data-driven", "technology", "intelligent"], 20);
+            }
+
+            async function runSkills() {
+                const container = addLine('', 'var(--foreground)');
+                container.id = 'skills-canvas-container';
+                container.innerHTML = `<canvas id="skills-canvas"></canvas><div id="skill-tooltip"></div>`;
+
+                await new Promise(res => setTimeout(res, 100));
+                container.style.opacity = '1';
+
+                const skills = [
+                    { name: 'Python', proficiency: 0.95 }, { name: 'TensorFlow', proficiency: 0.9 },
+                    { name: 'PyTorch', proficiency: 0.9 }, { name: 'Scikit-learn', proficiency: 0.85 },
+                    { name: 'JavaScript', proficiency: 0.8 }, { name: 'React', proficiency: 0.75 },
+                    { name: 'Node.js', proficiency: 0.7 }, { name: 'Docker', proficiency: 0.8 },
+                    { name: 'AWS', proficiency: 0.85 }, { name: 'SQL', proficiency: 0.8 },
+                    { name: 'Git', proficiency: 0.9 }, { name: 'Three.js', proficiency: 0.7 }
+                ];
+
+                const canvas = document.getElementById('skills-canvas');
+                if (!canvas) return; // Exit if canvas not found
+                const tooltip = document.getElementById('skill-tooltip');
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+
+                const skillObjects = [];
+                const phi = Math.PI * (3. - Math.sqrt(5.));
+
+                for (let i = 0; i < skills.length; i++) {
+                    const y = 1 - (i / (skills.length - 1)) * 2;
+                    const radius = Math.sqrt(1 - y * y);
+                    const theta = phi * i;
+                    const x = Math.cos(theta) * radius;
+                    const z = Math.sin(theta) * radius;
+
+                    const geometry = new THREE.SphereGeometry(0.05 * (0.5 + skills[i].proficiency * 0.5), 16, 16);
+                    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(varToHex('--cyan')) });
+                    const sphere = new THREE.Mesh(geometry, material);
+                    sphere.position.set(x, y, z).multiplyScalar(2);
+                    sphere.userData = skills[i];
+                    scene.add(sphere);
+                    skillObjects.push(sphere);
+                }
+
+                camera.position.z = 4;
+                const group = new THREE.Group();
+                skillObjects.forEach(s => group.add(s));
+                scene.add(group);
+
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2(-100, -100); // Start off-screen
+                let intersected;
+
+                function onMouseMove(event) {
+                    const rect = canvas.getBoundingClientRect();
+                    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                }
+                canvas.addEventListener('mousemove', onMouseMove);
+
+                function animate() {
+                    if (!document.getElementById('skills-canvas')) return;
+                    requestAnimationFrame(animate);
+                    group.rotation.y += 0.002;
+
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObjects(skillObjects);
+
+                    if (intersects.length > 0) {
+                        if (intersected !== intersects[0].object) {
+                            if (intersected) intersected.material.color.set(varToHex('--cyan'));
+                            intersected = intersects[0].object;
+                            intersected.material.color.set(varToHex('--yellow'));
+                            tooltip.style.display = 'block';
+                            tooltip.textContent = `${intersected.userData.name} (${Math.round(intersected.userData.proficiency * 100)}%)`;
+                        }
+                        tooltip.style.left = (mouse.x * (container.clientWidth / 2) + (container.clientWidth / 2) + 15) + 'px';
+                        tooltip.style.top = (-mouse.y * (container.clientHeight / 2) + (container.clientHeight / 2) + 15) + 'px';
+                    } else {
+                        if (intersected) intersected.material.color.set(varToHex('--cyan'));
+                        intersected = null;
+                        tooltip.style.display = 'none';
+                    }
+                    renderer.render(scene, camera);
+                }
+                animate();
+            }
+
+            async function runProjects() {
+                const projects = [
+                    { title: 'Neural Style Transfer', desc: 'An implementation of NST to combine content and style images.', tags: ['Python', 'TensorFlow', 'OpenCV'] },
+                    { title: 'Sentiment Analysis API', desc: 'A RESTful API that classifies text sentiment with 95% accuracy.', tags: ['Node.js', 'PyTorch', 'Docker'] },
+                    { title: 'Real-time Object Detection', desc: 'A webcam-based object detector using YOLOv4 deployed on AWS.', tags: ['Python', 'AWS', 'YOLO'] },
+                    { title: 'This Portfolio!', desc: 'An interactive terminal-based portfolio built with vanilla JS.', tags: ['JavaScript', 'HTML5', 'CSS3'] },
+                ];
+                let projectCardsHTML = '<div class="projects-grid">';
+                projects.forEach((p, i) => {
+                    projectCardsHTML += `<div class="project-card" style="animation-delay: ${i * 0.1}s"><h3>${p.title}</h3><p>${p.desc}</p><div class="tags">${p.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div></div>`;
+                });
+                projectCardsHTML += '</div><div class="line" style="text-align:center; margin-top: 2rem; color:var(--comment);">Type \'exit\' or press ESC to return to terminal.</div>';
+
+                projectsOverlay.innerHTML = projectCardsHTML;
+                projectsOverlay.style.display = 'flex';
+
+                function closeProjects(e) {
+                    if (e.key === 'Escape') {
+                        projectsOverlay.style.display = 'none';
+                        projectsOverlay.innerHTML = '';
+                        window.removeEventListener('keydown', closeProjects);
+                    }
+                }
+                window.addEventListener('keydown', closeProjects);
+            }
+
+            async function runContact() {
+                addLine('Contact Channels:', 'var(--yellow)');
+                addLine(`&nbsp;&nbsp;Email:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a class="contact-link" href="mailto:hkdeveloper2025@gmail.com">hkdeveloper2025@gmail.com</a>`);
+                addLine(`&nbsp;&nbsp;LinkedIn:&nbsp;&nbsp;<a class="contact-link" href="https://www.linkedin.com/in/hanumant-kendre-60378628a/" target="_blank">linkedin.com/in/hanumant-kendre-60378628a/</a>`);
+                addLine(`&nbsp;&nbsp;GitHub:&nbsp;&nbsp;&nbsp;&nbsp;<a class="contact-link" href="https://github.com/kendre-hs" target="_blank">https://github.com/kendre-hs</a>`);
+                addLine('', 'var(--comment)');
+                addLine('Or send a direct message below:', 'var(--comment)');
+
+                const formHTML = `<div class="contact-form"><div class="input-group"><label for="email">Your Email:</label><input type="email" id="email"></div><div class="input-group"><label for="message">Message:</label><input type="text" id="message"></div><div class="line" style="color:var(--comment); font-size:0.8rem;">Press Enter in message field to send.</div></div>`;
+                const formContainer = addLine(formHTML);
+
+                const messageInput = formContainer.querySelector('#message');
+                messageInput.addEventListener('keydown', async (e) => {
+                    if (e.key === 'Enter') {
+                        const email = formContainer.querySelector('#email').value;
+                        const message = messageInput.value;
+                        if (!email || !message) {
+                            addLine('Email and message cannot be empty.', 'var(--red)');
+                            return;
+                        }
+                        addLine('Encrypting packet...', 'var(--blue)');
+                        await new Promise(res => setTimeout(res, 500));
+                        addLine('Establishing secure connection...', 'var(--blue)');
+                        await new Promise(res => setTimeout(res, 800));
+                        addLine('Packet sent successfully! Thank you for reaching out.', 'var(--green)');
+                        playSound('G4', '8n');
+                        formContainer.innerHTML = '';
+                        focusInput();
+                    }
+                });
+            }
+
+            function runGlitchAnimation(element, final_text) {
+                return new Promise(resolve => {
+                    let i = 0;
+                    const chars = '!<>-_\\/[]{}—=+*^?#';
+                    const interval = setInterval(() => {
+                        element.textContent = final_text.split('').map((char, index) => {
+                            if (index < i) { return final_text[index]; }
+                            return chars[Math.floor(Math.random() * chars.length)];
+                        }).join('');
+                        if (i >= final_text.length) {
+                            clearInterval(interval);
+                            element.textContent = final_text;
+                            resolve();
+                        }
+                        i += 1 / 3;
+                    }, 50);
+                });
+            }
+
+            function typeBioText(element, text, keywords, delay) {
+                return new Promise(resolve => {
+                    let i = 0;
+                    let currentHTML = '';
+                    function type() {
+                        if (i < text.length) {
+                            currentHTML += text[i];
+                            const wordBoundary = /\s|[,.]/;
+                            let lastWordMatch = currentHTML.match(/(\w+)$/);
+                            if (lastWordMatch) {
+                                let lastWord = lastWordMatch[1];
+                                if (keywords.includes(lastWord) && (i === text.length - 1 || wordBoundary.test(text[i + 1]))) {
+                                    let highlightedWord = `<span class="keyword">${lastWord}</span>`;
+                                    currentHTML = currentHTML.replace(new RegExp(lastWord + '$'), highlightedWord);
+                                }
+                            }
+                            element.innerHTML = currentHTML;
+                            if (text.charAt(i) !== ' ') playSound('D2', '32n');
+                            i++;
+                            setTimeout(type, delay);
+                        } else { resolve(); }
+                    }
+                    type();
+                });
+            }
+
+            function varToHex(varName) {
+                const color = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+                if (color.startsWith('#')) return color;
+                let rgb = color.match(/\d+/g).map(Number);
+                return "#" + rgb.map(x => x.toString(16).padStart(2, '0')).join('');
+            }
+
+            init();
+        });
+    </script>
+</body>
+
+</html>
